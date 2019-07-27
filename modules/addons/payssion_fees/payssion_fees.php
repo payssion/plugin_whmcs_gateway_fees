@@ -18,13 +18,13 @@ function payssion_fees_config()
 			"FriendlyName" => $name,
 			"Type" => "text",
 			"Default" => "0.00",
-			"Description" => "$"
+			"Description" => "Fixed Fee"
 		);
 		$configarray['fields']["fee_2_" . $data['gateway']] = array(
 			"FriendlyName" => $name,
 			"Type" => "text",
 			"Default" => "0.00",
-			"Description" => "%<br />"
+			"Description" => "Percentage ( % )"
 		);
 	}
 
