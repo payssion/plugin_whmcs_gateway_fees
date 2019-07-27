@@ -65,6 +65,75 @@ add_hook("AdminInvoicesControlsOutput", 2, "update_gateway_fee3");
 add_hook("AdminInvoicesControlsOutput", 1, "update_gateway_fee1");
 add_hook("InvoiceCreationAdminArea", 1, "update_gateway_fee1");
 add_hook("InvoiceCreationAdminArea", 2, "update_gateway_fee3");
+add_hook('AfterCalculateCartTotals', 1, function($vars) {
+    $_SESSION['total_payssion'] = $vars;
+});
+
+add_hook('ClientAreaFooterOutput', 1, function($vars) {
+    if ('checkout' != $vars['action']) {
+        return ;
+    }
+    
+    $total = $_SESSION['total_payssion'];
+    
+    $switch_case = '';
+    if ($total) {
+        $total_full = $total['total']->toFull();
+        $total = $total['total']->toNumeric();
+        
+        $result = select_query("tbladdonmodules", "setting,value", "module='payssion_fees' AND setting LIKE 'fee_%'");
+        $payment_method_list = [];
+        $fee_list = [];
+        while ($data = mysql_fetch_array($result)) {
+            $setting = $data['setting'];
+            $fee_list[$setting] = $data['value'];
+            $payment_method = substr($setting, strlen('fee_1_'));
+            $payment_method_list[$payment_method] = $payment_method;
+        }
+        
+        foreach ($payment_method_list as $payment_method) {
+            $fees = $fee_list['fee_1_' . $payment_method] + $total * $fee_list['fee_2_' . $payment_method] / 100;
+            $fees = ceil($fees * 100) / 100;
+            $fees = preg_replace('/[0-9.,]+/', $fees, $total_full);
+            $switch_case .= "case '$payment_method': fees = '$fees'; break;";
+        }
+    }
+
+    return "<script>
+    function updatePayssionFees() {
+        payment_method = $('input[type=radio][name=paymentmethod]:checked').val();
+        fees = null;
+        switch (payment_method) {
+            $switch_case
+            default:break;
+        }
+        if (fees) {
+            $('#payssion_fees').html('+ (Payment Gateway Fees ' + fees + ')');
+        } else {
+            $('#payssion_fees').html('');
+        }
+    }
+    $(document).ready(function(){
+        append_element = '<small id=\"payssion_fees\"></small>';
+        if ($('.alert-success').length > 0) {
+            $('.alert-success').append(append_element);
+        }
+        if ($('#totalDueToday').length > 0) {
+            $('#totalDueToday').append(append_element);
+        }
+        if ($('.total > .text-center').length > 0) {
+            $('.total > .text-center').append(append_element);
+        }
+        $('input[type=radio][name=paymentmethod]').on('change', function() {
+            updatePayssionFees();
+        });
+        $('input[type=radio][name=paymentmethod]').on('ifChanged', function (e) {
+            $(this).trigger('change', e);
+        });
+        updatePayssionFees();
+    });
+    </script>";
+});
 
 function InvoiceTotal($id)
 {
